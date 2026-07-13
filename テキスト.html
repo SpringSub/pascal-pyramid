@@ -8,12 +8,33 @@
         #info { position: absolute; top: 15px; left: 15px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 8px; pointer-events: none; box-shadow: 0 2px 8px rgba(0,0,0,0.1); max-width: 280px; }
         #info h3 { margin: 0 0 5px 0; font-size: 15px; color: #1f2937; }
         #info p { margin: 0; font-size: 12px; color: #4b5563; line-height: 1.4; }
-        #ui-panel { position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.95); padding: 15px 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 8px; width: 320px; }
-        .control-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-        label { font-size: 12px; font-weight: bold; color: #374151; min-width: 100px; }
-        input[type="range"] { flex-grow: 1; }
+        #ui-panel { position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.95); padding: 15px 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 8px; width: 360px; } /* ボタン幅の分、少しパネルを広げました */
+        .control-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+        label { font-size: 12px; font-weight: bold; color: #374151; min-width: 90px; }
+        input[type="range"] { flex-grow: 1; margin: 0; }
         .val-span { font-size: 12px; font-weight: bold; color: #2563eb; min-width: 35px; text-align: right; }
         .section-title { font-size: 11px; color: #9ca3af; border-bottom: 1px solid #e5e7eb; margin: 4px 0 2px 0; padding-bottom: 2px; font-weight: bold; }
+        
+        /* 調整ボタンのスタイル */
+        .step-btn {
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            color: #374151;
+            font-size: 14px;
+            font-weight: bold;
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .step-btn:active {
+            background-color: #e5e7eb;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -26,24 +47,32 @@
     <div id="ui-panel">
         <div class="control-row">
             <label for="layerRange">階層の上限 (n): </label>
+            <button class="step-btn" onclick="stepAdjust('layerRange', -1)">-</button>
             <input type="range" id="layerRange" min="0" max="10" value="5" step="1">
+            <button class="step-btn" onclick="stepAdjust('layerRange', 1)">+</button>
             <span id="layerVal" class="val-span">5</span>
         </div>
         <div class="section-title">スライサーの角度（2軸合成）</div>
         <div class="control-row">
             <label for="angleX">X軸まわりの回転: </label>
+            <button class="step-btn" onclick="stepAdjust('angleX', -1)">-</button>
             <input type="range" id="angleX" min="-180" max="180" value="0" step="1">
+            <button class="step-btn" onclick="stepAdjust('angleX', 1)">+</button>
             <span id="valX" class="val-span">0°</span>
         </div>
         <div class="control-row">
             <label for="angleY">Y軸まわりの回転: </label>
+            <button class="step-btn" onclick="stepAdjust('angleY', -1)">-</button>
             <input type="range" id="angleY" min="-180" max="180" value="0" step="1">
+            <button class="step-btn" onclick="stepAdjust('angleY', 1)">+</button>
             <span id="valY" class="val-span">0°</span>
         </div>
         <div class="section-title">スライサーの位置</div>
         <div class="control-row">
             <label for="sliceDepth">削る深さ位置: </label>
+            <button class="step-btn" onclick="stepAdjust('sliceDepth', -1)">-</button>
             <input type="range" id="sliceDepth" min="0" max="100" value="30" step="1">
+            <button class="step-btn" onclick="stepAdjust('sliceDepth', 1)">+</button>
             <span id="depthVal" class="val-span">30%</span>
         </div>
     </div>
@@ -76,7 +105,6 @@
 
         const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
         
-        // 【修正】見えないカット用の刃を先に定義
         const currentPlane = new THREE.Plane();
         
         const spriteCache = {};
@@ -110,7 +138,6 @@
         scene.add(meshGroup);
         scene.add(spriteGroup);
 
-        // スライサー面（ここにはclippingPlanesを適用しないので揺れなくなります）
         const slicePlaneGeo = new THREE.PlaneGeometry(1, 1);
         const slicePlaneMat = new THREE.MeshBasicMaterial({ color: 0xef4444, opacity: 0.16, transparent: true, side: THREE.DoubleSide, depthWrite: false });
         const slicePlaneMesh = new THREE.Mesh(slicePlaneGeo, slicePlaneMat);
@@ -139,7 +166,6 @@
                 return new THREE.Vector3((i * vA.x + j * vB.x + k * vC.x) * spacing, y, (i * vA.y + j * vB.y + k * vC.y) * spacing);
             }
 
-            // 【修正】立体パーツのみにカット用の刃（clippingPlanes）を紐付け
             for (let n = 1; n <= maxLayer; n++) {
                 const pA = getNodePosition(n, n, 0, 0); const pB = getNodePosition(n, 0, n, 0); const pC = getNodePosition(n, 0, 0, n);
                 const geometry = new THREE.BufferGeometry();
@@ -204,13 +230,28 @@
             sliceLine.rotation.copy(rotationEuler);
             sliceLine.position.copy(slicePlaneMesh.position);
 
-            // 【修正】刃の向きだけを更新（renderer全体の指定は解除）
             currentPlane.set(new THREE.Vector3().copy(normal).negate(), constant);
 
             spriteGroup.children.forEach(sprite => {
                 const sliced = sprite.position.dot(normal) > constant;
                 sprite.visible = !sliced;
             });
+        }
+
+        // ボタンクリック時の微調整用関数
+        function stepAdjust(id, direction) {
+            const el = document.getElementById(id);
+            const min = parseInt(el.min);
+            const max = parseInt(el.max);
+            const step = parseInt(el.step || 1);
+            let newVal = parseInt(el.value) + (direction * step);
+            
+            if (newVal < min) newVal = min;
+            if (newVal > max) newVal = max;
+            
+            el.value = newVal;
+            updateUIValues();
+            updateSlice();
         }
 
         document.getElementById('layerRange').addEventListener('input', () => { updateUIValues(); updateSlice(); });
@@ -240,4 +281,3 @@
     </script>
 </body>
 </html>
-
