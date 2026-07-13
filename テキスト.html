@@ -56,14 +56,14 @@
         <div class="control-row">
             <label for="angleX">X軸まわりの回転: </label>
             <button class="step-btn" onclick="stepAdjust('angleX', -1)">-</button>
-            <input type="range" id="angleX" min="-180" max="180" value="0" step="1">
+            <input type="range" id="angleX" min="-180" max="180" value="0" step="0.5">
             <button class="step-btn" onclick="stepAdjust('angleX', 1)">+</button>
             <span id="valX" class="val-span">0°</span>
         </div>
         <div class="control-row">
             <label for="angleY">Y軸まわりの回転: </label>
             <button class="step-btn" onclick="stepAdjust('angleY', -1)">-</button>
-            <input type="range" id="angleY" min="-180" max="180" value="0" step="1">
+            <input type="range" id="angleY" min="-180" max="180" value="0" step="0.5">
             <button class="step-btn" onclick="stepAdjust('angleY', 1)">+</button>
             <span id="valY" class="val-span">0°</span>
         </div>
@@ -71,7 +71,7 @@
         <div class="control-row">
             <label for="sliceDepth">削る深さ位置: </label>
             <button class="step-btn" onclick="stepAdjust('sliceDepth', -1)">-</button>
-            <input type="range" id="sliceDepth" min="0" max="100" value="30" step="1">
+            <input type="range" id="sliceDepth" min="0" max="100" value="30" step="0.25">
             <button class="step-btn" onclick="stepAdjust('sliceDepth', 1)">+</button>
             <span id="depthVal" class="val-span">30%</span>
         </div>
