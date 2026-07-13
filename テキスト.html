@@ -1,9 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>iPad最適化版：パスカルの正四面体</title>
+    <title>パスカルの正四面体</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #f3f4f6; font-family: sans-serif; }
         #info { position: absolute; top: 15px; left: 15px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 8px; pointer-events: none; box-shadow: 0 2px 8px rgba(0,0,0,0.1); max-width: 280px; }
@@ -49,7 +48,6 @@
         </div>
     </div>
     <script>
-        // メモ化関数
         const memo = [];
         function fact(num) {
             if (num <= 1) return 1;
@@ -61,7 +59,6 @@
             return fact(n) / (fact(i) * fact(j) * fact(k));
         }
 
-        // 初期設定
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0xf3f4f6);
         const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -74,13 +71,11 @@
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true; controls.dampingFactor = 0.05;
 
-        // ライト
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); scene.add(ambientLight);
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.6); dirLight.position.set(10, 20, 10); scene.add(dirLight);
 
         const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
         
-        // 【最適化】テクスチャの生成キャッシュ
         const spriteCache = {};
         function getCachedSprite(text) {
             if (spriteCache[text]) return spriteCache[text].clone();
@@ -107,13 +102,11 @@
             return sprite.clone();
         }
 
-        // オブジェクト管理用グループ
         let meshGroup = new THREE.Group();
         let spriteGroup = new THREE.Group();
         scene.add(meshGroup);
         scene.add(spriteGroup);
 
-        // スライサー面（一度だけ生成して使い回す）
         const slicePlaneGeo = new THREE.PlaneGeometry(1, 1);
         const slicePlaneMat = new THREE.MeshBasicMaterial({ color: 0xef4444, opacity: 0.16, transparent: true, side: THREE.DoubleSide, depthWrite: false });
         const slicePlaneMesh = new THREE.Mesh(slicePlaneGeo, slicePlaneMat);
@@ -126,10 +119,9 @@
         const spacing = 1.6; const heightFactor = Math.sqrt(6) / 3 * spacing;
         let currentMaxLayer = -1;
 
-        // 形状自体を再構築する（階層の上限が変わった時だけ実行）
         function rebuildGeometry() {
             const maxLayer = parseInt(document.getElementById('layerRange').value);
-            if (maxLayer === currentMaxLayer) return; // 変更がなければスキップ
+            if (maxLayer === currentMaxLayer) return; 
             currentMaxLayer = maxLayer;
 
             while(meshGroup.children.length > 0){ meshGroup.remove(meshGroup.children[0]); }
@@ -143,7 +135,6 @@
                 return new THREE.Vector3((i * vA.x + j * vB.x + k * vC.x) * spacing, y, (i * vA.y + j * vB.y + k * vC.y) * spacing);
             }
 
-            // 1. 各階層の水平プレート
             for (let n = 1; n <= maxLayer; n++) {
                 const pA = getNodePosition(n, n, 0, 0); const pB = getNodePosition(n, 0, n, 0); const pC = getNodePosition(n, 0, 0, n);
                 const geometry = new THREE.BufferGeometry();
@@ -154,9 +145,9 @@
                 meshGroup.add(line);
             }
 
-            // 2. 外殻
+            const vBottomA = getNodePosition(maxLayer, maxLayer, 0, 0);
             if (maxLayer >= 1) {
-                const vTop = getNodePosition(0, 0, 0, 0); const vBottomA = getNodePosition(maxLayer, maxLayer, 0, 0); const vBottomB = getNodePosition(maxLayer, 0, maxLayer, 0); const vBottomC = getNodePosition(maxLayer, 0, 0, maxLayer);
+                const vTop = getNodePosition(0, 0, 0, 0); const vBottomB = getNodePosition(maxLayer, 0, maxLayer, 0); const vBottomC = getNodePosition(maxLayer, 0, 0, maxLayer);
                 const outerGeometry = new THREE.BufferGeometry();
                 outerGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
                     vBottomA.x, vBottomA.y, vBottomA.z, vBottomB.x, vBottomB.y, vBottomB.z, vBottomC.x, vBottomC.y, vBottomC.z,
@@ -169,7 +160,10 @@
                 meshGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(outerGeometry), new THREE.LineBasicMaterial({ color: 0x1e4ea8, transparent: true, opacity: 0.3 })));
             }
 
-            // 3. 数値スプライトの事前配置
+            const maxRadius = vBottomA.length() * 1.3;
+            slicePlaneMesh.scale.set(maxRadius * 2.5, maxRadius * 2.5, 1);
+            sliceLine.scale.set(maxRadius * 2.5, maxRadius * 2.5, 1);
+
             for (let n = 0; n <= maxLayer; n++) {
                 for (let i = 0; i <= n; i++) {
                     for (let j = 0; j <= n - i; j++) {
@@ -183,14 +177,8 @@
                     }
                 }
             }
-            
-            // スライサー面のスケールリサイズ
-            const maxRadius = vBottomA.length() * 1.3;
-            slicePlaneMesh.scale.set(maxRadius * 2.5, maxRadius * 2.5, 1);
-            sliceLine.scale.set(maxRadius * 2.5, maxRadius * 2.5, 1);
         }
 
-        // 角度と位置だけをリアルタイム更新する（超高速処理）
         let currentPlane = new THREE.Plane();
         function updateSlice() {
             rebuildGeometry();
@@ -207,24 +195,20 @@
             const rotationEuler = new THREE.Euler((degX * Math.PI) / 180, (degY * Math.PI) / 180, 0, 'XYZ');
             let normal = new THREE.Vector3(0, 0, 1).applyEuler(rotationEuler).normalize();
 
-            // スライサー面の位置・回転同期
             slicePlaneMesh.rotation.copy(rotationEuler);
             slicePlaneMesh.position.copy(normal).multiplyScalar(constant);
             sliceLine.rotation.copy(rotationEuler);
             sliceLine.position.copy(slicePlaneMesh.position);
 
-            // クリッピングプレーンの更新
             currentPlane.set(new THREE.Vector3().copy(normal).negate(), constant);
             renderer.clippingPlanes = [currentPlane];
 
-            // 各数値の表示・非表示を高速判定
             spriteGroup.children.forEach(sprite => {
                 const sliced = sprite.position.dot(normal) > constant;
                 sprite.visible = !sliced;
             });
         }
 
-        // イベント設定
         document.getElementById('layerRange').addEventListener('input', () => { updateUIValues(); updateSlice(); });
         ['angleX', 'angleY', 'sliceDepth'].forEach(id => {
             document.getElementById(id).addEventListener('input', () => { updateUIValues(); updateSlice(); });
@@ -237,7 +221,6 @@
             document.getElementById('depthVal').innerText = document.getElementById('sliceDepth').value + '%';
         }
 
-        // 初回起動
         updateUIValues();
         updateSlice();
 
