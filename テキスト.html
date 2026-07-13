@@ -8,14 +8,13 @@
         #info { position: absolute; top: 15px; left: 15px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 8px; pointer-events: none; box-shadow: 0 2px 8px rgba(0,0,0,0.1); max-width: 280px; }
         #info h3 { margin: 0 0 5px 0; font-size: 15px; color: #1f2937; }
         #info p { margin: 0; font-size: 12px; color: #4b5563; line-height: 1.4; }
-        #ui-panel { position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.95); padding: 15px 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 8px; width: 360px; } /* ボタン幅の分、少しパネルを広げました */
+        #ui-panel { position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.95); padding: 15px 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 8px; width: 360px; }
         .control-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
         label { font-size: 12px; font-weight: bold; color: #374151; min-width: 90px; }
         input[type="range"] { flex-grow: 1; margin: 0; }
-        .val-span { font-size: 12px; font-weight: bold; color: #2563eb; min-width: 35px; text-align: right; }
+        .val-span { font-size: 12px; font-weight: bold; color: #2563eb; min-width: 45px; text-align: right; }
         .section-title { font-size: 11px; color: #9ca3af; border-bottom: 1px solid #e5e7eb; margin: 4px 0 2px 0; padding-bottom: 2px; font-weight: bold; }
         
-        /* 調整ボタンのスタイル */
         .step-btn {
             background-color: #ffffff;
             border: 1px solid #d1d5db;
@@ -56,24 +55,24 @@
         <div class="control-row">
             <label for="angleX">X軸まわりの回転: </label>
             <button class="step-btn" onclick="stepAdjust('angleX', -1)">-</button>
-            <input type="range" id="angleX" min="-180" max="180" value="0" step="0.5">
+            <input type="range" id="angleX" min="-180" max="180" value="0.0" step="0.1">
             <button class="step-btn" onclick="stepAdjust('angleX', 1)">+</button>
-            <span id="valX" class="val-span">0°</span>
+            <span id="valX" class="val-span">0.0°</span>
         </div>
         <div class="control-row">
             <label for="angleY">Y軸まわりの回転: </label>
             <button class="step-btn" onclick="stepAdjust('angleY', -1)">-</button>
-            <input type="range" id="angleY" min="-180" max="180" value="0" step="0.5">
+            <input type="range" id="angleY" min="-180" max="180" value="0.0" step="0.1">
             <button class="step-btn" onclick="stepAdjust('angleY', 1)">+</button>
-            <span id="valY" class="val-span">0°</span>
+            <span id="valY" class="val-span">0.0°</span>
         </div>
         <div class="section-title">スライサーの位置</div>
         <div class="control-row">
             <label for="sliceDepth">削る深さ位置: </label>
             <button class="step-btn" onclick="stepAdjust('sliceDepth', -1)">-</button>
-            <input type="range" id="sliceDepth" min="0" max="100" value="30" step="0.25">
+            <input type="range" id="sliceDepth" min="0" max="100" value="30.0" step="0.5">
             <button class="step-btn" onclick="stepAdjust('sliceDepth', 1)">+</button>
-            <span id="depthVal" class="val-span">30%</span>
+            <span id="depthVal" class="val-span">30.0%</span>
         </div>
     </div>
     <script>
@@ -213,9 +212,10 @@
         function updateSlice() {
             rebuildGeometry();
 
-            const degX = parseInt(document.getElementById('angleX').value);
-            const degY = parseInt(document.getElementById('angleY').value);
-            const depthPercent = parseInt(document.getElementById('sliceDepth').value);
+            // 【修正】parseInt から parseFloat に変更して小数を維持
+            const degX = parseFloat(document.getElementById('angleX').value);
+            const degY = parseFloat(document.getElementById('angleY').value);
+            const depthPercent = parseFloat(document.getElementById('sliceDepth').value);
 
             const maxLayer = currentMaxLayer;
             const totalHeight = maxLayer * heightFactor; const yOffset = totalHeight / 4; 
@@ -238,13 +238,18 @@
             });
         }
 
-        // ボタンクリック時の微調整用関数
+        // 【修正】小数の計算バグ（0.1+0.2=0.3000000004現象）を防ぐ処理を追加
         function stepAdjust(id, direction) {
             const el = document.getElementById(id);
-            const min = parseInt(el.min);
-            const max = parseInt(el.max);
-            const step = parseInt(el.step || 1);
-            let newVal = parseInt(el.value) + (direction * step);
+            const min = parseFloat(el.min);
+            const max = parseFloat(el.max);
+            const step = parseFloat(el.step || 1);
+            
+            let newVal = parseFloat(el.value) + (direction * step);
+            
+            // 小数点計算の丸め誤差を排除（stepの桁数に合わせる）
+            const precision = step.toString().includes('.') ? step.toString().split('.')[1].length : 0;
+            newVal = parseFloat(newVal.toFixed(precision));
             
             if (newVal < min) newVal = min;
             if (newVal > max) newVal = max;
@@ -259,11 +264,17 @@
             document.getElementById(id).addEventListener('input', () => { updateUIValues(); updateSlice(); });
         });
 
+        // 【修正】表示されるテキストも小数点第1位まで固定表示するように変更
         function updateUIValues() {
             document.getElementById('layerVal').innerText = document.getElementById('layerRange').value;
-            document.getElementById('valX').innerText = document.getElementById('angleX').value + '°';
-            document.getElementById('valY').innerText = document.getElementById('angleY').value + '°';
-            document.getElementById('depthVal').innerText = document.getElementById('sliceDepth').value + '%';
+            
+            const xVal = parseFloat(document.getElementById('angleX').value).toFixed(1);
+            const yVal = parseFloat(document.getElementById('angleY').value).toFixed(1);
+            const dVal = parseFloat(document.getElementById('sliceDepth').value).toFixed(1);
+            
+            document.getElementById('valX').innerText = xVal + '°';
+            document.getElementById('valY').innerText = yVal + '°';
+            document.getElementById('depthVal').innerText = dVal + '%';
         }
 
         updateUIValues();
